@@ -1,3 +1,3 @@
-# Browser Summarize
+# GPT Chrome Summarizer
 
-Chrome/Firefox extension that uses GPT to summarize web content.
+A Chrome extension for summarizing text using GPT.
