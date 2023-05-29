@@ -2,7 +2,7 @@
 
 A Chrome extension for summarizing text using GPT.
 
-![screenshot](docs/screenshot-500.png)
+![screenshot](docs/screenshot-500.png | width=100)
 
 ## Getting started
 
