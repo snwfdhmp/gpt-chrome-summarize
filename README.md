@@ -2,7 +2,7 @@
 
 A Chrome extension for summarizing text using GPT.
 
-<img src="https://raw.githubusercontent.com/snwfdhmp/gpt-chrome-summarizer/main/docs/screenshot-700.png"  width="300">
+<img src="https://raw.githubusercontent.com/snwfdhmp/gpt-chrome-summarizer/main/docs/screenshot-rounded-700.png"  width="300">
 
 ## Getting started
 
