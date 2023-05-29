@@ -1,0 +1,26 @@
+{
+  "manifest_version": 2,
+  "name": "Summarizer",
+  "version": "1.0",
+  "description": "A Chrome extension for summarizing text",
+  "permissions": ["activeTab", "tabs", "storage", "*://*/*"],
+  "icons": {
+	"16": "icons/16.png",
+	"48": "icons/48.png",
+	"128": "icons/128.png"
+  },
+  "browser_action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": ["popup.html", "popup.js"],
+  "background": {
+    "scripts": ["content.js"],
+    "persistent": false
+  }
+}
