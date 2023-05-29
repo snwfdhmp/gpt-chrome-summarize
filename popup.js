@@ -103,7 +103,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
 const checkEmptyApiKey = async () => {
   await readApiKey();
-  if (!missingApiKey) return true;
+  if (!missingApiKey) {
+    apiKey.className = "gray";
+    return true;
+  }
   textArea.value =
     "ENTER API KEY\n\nPlease enter an API key in the input below then reopen the extension.";
   apiKey.className = "red-border";
@@ -157,7 +160,10 @@ const sendPrompt = async () => {
   //handle error
   if (!response.ok) {
     const error = await response.json();
-    textArea.value = error.error.message;
+    textArea.value =
+      error.error.message +
+      "\n\nPlease reopen the extension and try again.\n\nNote that you can edit the text before summarizing.";
+    summarizeButtonTitle.innerHTML = "Error";
     return;
   }
 
