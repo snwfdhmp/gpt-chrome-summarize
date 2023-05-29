@@ -5,6 +5,8 @@ let tokenCount;
 let summarizeButton;
 let summarizeButtonTitle;
 
+const MAX_WORD_PER_MESSAGE = 1200;
+
 let missingApiKey = false;
 
 // define chrome if not defined
@@ -15,10 +17,12 @@ if (typeof chrome === "undefined") {
 const PREPROMPT = `
 You are an internet browsing assistant.
 Summarize the following webpage text content using bullet points.
-Webpages are sent to you by the user in message. 1 message = 1 webpage.
+Webpages are sent to you by the user in message. If the message ends with "<|...|>", it means that the message is incomplete and that you will receive another message with the rest of the content.
 The content is messy and contains useless information, you have to filter it.
 Use "Sentence case" : first word with capital letter, the rest lowercase.
 Use concise sentences.
+Organize the content in bullet points.
+Always write in the original webpage content language. If the webpage content is in french, write in french.
 `;
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -55,25 +59,6 @@ document.addEventListener("DOMContentLoaded", function () {
     // if url extension is pdf
     if (tabs[0].url.split(".").pop() === "pdf") {
       textArea.value = "PDF not supported yet.";
-      // textArea.value = "Loading pdf...";
-      // // var pdfjsLib = window["pdfjs-dist/build/pdf"];
-      // // pdfjsLib.GlobalWorkerOptions.workerSrc =
-      // //   "https://mozilla.github.io/pdf.js/build/pdf.worker.js";
-      // var loadingTask = pdfjsLib.getDocument({ data: pdfData });
-      // loadingTask.promise.then(
-      //   function (pdf) {
-      //     textArea.value = "PDF loaded.";
-
-      //     // // Fetch the first page
-      //     // var pageNumber = 1;
-      //     // // log(pdf);
-      //     // textArea.value = pdf.numPages;
-      //   },
-      //   function (reason) {
-      //     // PDF loading error
-      //     textArea.value = "Error loading pdf. " + JSON.stringify(reason);
-      //   }
-      // );
     }
   });
 
@@ -104,12 +89,12 @@ document.addEventListener("DOMContentLoaded", function () {
 const checkEmptyApiKey = async () => {
   await readApiKey();
   if (!missingApiKey) {
-    apiKey.className = "gray";
+    apiKey.className = "apikey-valid";
     return true;
   }
   textArea.value =
     "ENTER API KEY\n\nPlease enter an API key in the input below then reopen the extension.";
-  apiKey.className = "red-border";
+  apiKey.className = "apikey-missing";
   // when click on api key, set value to ""
   apiKey.addEventListener("click", function () {
     apiKey.value = "";
@@ -132,6 +117,31 @@ const log = (data) => {
 
 const sendPrompt = async () => {
   conversationString = "";
+
+  // split per 15 words
+  let words = textArea.value.split(" ");
+  let messages = [];
+  for (let i = 0; i < words.length; i += MAX_WORD_PER_MESSAGE) {
+    messages.push(
+      words.slice(i, i + MAX_WORD_PER_MESSAGE).join(" ") + " <|...|> "
+    );
+  }
+
+  // send 1 new message per loop
+  for (let i = 0; i < messages.length; i++) {
+    await sendMessages(messages.slice(0, i + 1), gptResponses, messages.length);
+  }
+};
+
+let gptResponses = [];
+const sendMessages = async (messageList, gptResponses, totalMessagesCount) => {
+  summarizeButtonTitle.innerHTML = `Sending ${messageList.length}/${totalMessagesCount} <img src='https://i.gifer.com/ZZ5H.gif' class='loader' />`;
+
+  // one message and one response
+  const conversation = [];
+  for (let i = 0; i < messageList.length; i++) {
+    conversation.push({ role: "user", content: messageList[i] });
+  }
   const requestBody = {
     model: "gpt-3.5-turbo",
     messages: [
@@ -139,10 +149,7 @@ const sendPrompt = async () => {
         role: "system",
         content: PREPROMPT,
       },
-      {
-        role: "user",
-        content: textArea.value,
-      },
+      ...conversation,
     ],
     temperature: 0.2,
     stream: true,
@@ -174,6 +181,7 @@ const sendPrompt = async () => {
 
   while (!result.done) {
     partialData += decoder.decode(result.value, { stream: true });
+    summarizeButtonTitle.innerHTML = `Summarizing ${messageList.length}/${totalMessagesCount} <img src='https://i.gifer.com/ZZ5H.gif' class='loader' />`;
 
     while (partialData.includes("data:")) {
       const startIndex = partialData.indexOf("data:");
@@ -185,13 +193,18 @@ const sendPrompt = async () => {
         const content = message.choices[0].delta.content;
 
         if (message.choices[0].finish_reason === "stop") {
+          conversationString += "\n";
           summarizeButtonTitle.innerHTML = "Summarize";
+
           // Last message received, stop processing
           return;
         }
 
         if (content) {
           displayMessage("Assistant", content);
+          gptResponses[messageList.length - 1] =
+            gptResponses[messageList.length - 1] || "";
+          gptResponses[messageList.length - 1] += content;
         }
       }
 
@@ -208,7 +221,6 @@ let conversationString = "";
 // Function to display messages in the conversation
 function displayMessage(role, content) {
   if (role === "User") return;
-  log({ role, content });
 
   // Append the formatted message to the conversation string
   conversationString += content;
@@ -220,9 +232,9 @@ function displayMessage(role, content) {
 // Example usage
 async function runSummarize() {
   summarizeButtonTitle.innerHTML =
-    "Thinking <img src='https://i.gifer.com/ZZ5H.gif' class='loader' />";
+    "Connecting <img src='https://i.gifer.com/ZZ5H.gif' class='loader' />";
   // displayMessage("User", textArea.value);
-  sendPrompt(textArea.value);
+  sendPrompt();
   textArea.value = "";
 }
 
@@ -241,4 +253,6 @@ const readApiKey = () => {
   });
 };
 
-log("popup opened");
+console.log = log;
+console.error = log;
+console.log("popup opened");

@@ -7,8 +7,6 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     const documentCopy = document.cloneNode(true);
     var article = new Readability(documentCopy).parse();
 
-    console.log("article", article.textContent);
-
     let textContent = article.textContent.trim();
 
     // SANITIZE INPUT
@@ -37,7 +35,9 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     // textContent = textContent.replace(/\s+/g, "X");
 
     // Send the content back to the popup
-    sendResponse({ content: textContent });
+
+    const content = `${article.title}\n${document.location.href}\n\n${textContent}`;
+    sendResponse({ content: content });
   }
 
   if (request.message === "log") {
