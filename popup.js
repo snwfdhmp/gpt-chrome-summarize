@@ -1,10 +1,16 @@
-const AUTHORIZATION_HEADER =
-  "Bearer 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";
+let AUTHORIZATION_HEADER = "***";
 let textArea;
 let cost;
 let tokenCount;
 let summarizeButton;
 let summarizeButtonTitle;
+
+let missingApiKey = false;
+
+// define chrome if not defined
+if (typeof chrome === "undefined") {
+  var chrome = { tabs: { query: () => {} } };
+}
 
 const PREPROMPT = `
 You are an internet browsing assistant.
@@ -23,6 +29,27 @@ document.addEventListener("DOMContentLoaded", function () {
   cost = document.getElementById("cost");
   tokenCount = document.getElementById("token-count");
   summarizeButtonTitle = document.getElementById("summarize-title");
+  apiKey = document.getElementById("api-key");
+
+  // fill api key with local storage
+  chrome.storage.local.get("apiKey", function (result) {
+    if (result.apiKey) {
+      AUTHORIZATION_HEADER = "Bearer " + result.apiKey;
+      apiKey.value = result.apiKey;
+    } else {
+      missingApiKey = true;
+    }
+  });
+
+  readApiKey();
+
+  // on api key change, update extension storage
+  apiKey.addEventListener("keyup", function () {
+    chrome.storage.local.set({ apiKey: apiKey.value }, function () {
+      AUTHORIZATION_HEADER = "Bearer " + apiKey.value;
+    });
+  });
+
   chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
     // document.getElementById("location").innerHTML = tabs[0].url;
     // if url extension is pdf
@@ -55,7 +82,8 @@ document.addEventListener("DOMContentLoaded", function () {
     chrome.tabs.sendMessage(
       tabs[0].id,
       { message: "getWebPageContent" },
-      function (response) {
+      async function (response) {
+        if (!(await checkEmptyApiKey())) return;
         // Display the content in the text area
         // textArea.value = response.content;
         textArea.value = response.content;
@@ -72,6 +100,25 @@ document.addEventListener("DOMContentLoaded", function () {
     runSummarize();
   });
 });
+
+const checkEmptyApiKey = async () => {
+  await readApiKey();
+  if (!missingApiKey) return true;
+  textArea.value =
+    "ENTER API KEY\n\nPlease enter an API key in the input below then reopen the extension.";
+  apiKey.className = "red-border";
+  // when click on api key, set value to ""
+  apiKey.addEventListener("click", function () {
+    apiKey.value = "";
+    apiKey.className = "";
+  });
+
+  // when unfocus api key, rerun this function
+  apiKey.addEventListener("focusout", function () {
+    checkEmptyApiKey();
+  });
+  return false;
+};
 
 // send log to content.js
 const log = (data) => {
@@ -106,6 +153,13 @@ const sendPrompt = async () => {
     },
     body: JSON.stringify(requestBody),
   });
+
+  //handle error
+  if (!response.ok) {
+    const error = await response.json();
+    textArea.value = error.error.message;
+    return;
+  }
 
   const reader = response.body.getReader();
   let result = await reader.read();
@@ -165,5 +219,20 @@ async function runSummarize() {
   sendPrompt(textArea.value);
   textArea.value = "";
 }
+
+const readApiKey = () => {
+  return new Promise((resolve, reject) => {
+    // fill api key with local storage
+    missingApiKey = true;
+    chrome.storage.local.get("apiKey", function (result) {
+      if (result.apiKey) {
+        AUTHORIZATION_HEADER = "Bearer " + result.apiKey;
+        apiKey.value = result.apiKey;
+        missingApiKey = false;
+      }
+      resolve();
+    });
+  });
+};
 
 log("popup opened");

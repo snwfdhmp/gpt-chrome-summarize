@@ -7,23 +7,34 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     const documentCopy = document.cloneNode(true);
     var article = new Readability(documentCopy).parse();
 
-    let textContent = article.textContent;
+    console.log("article", article.textContent);
 
-    textContent = textContent.replace(/^(\s*\r*\n){2,}/, "\r\n");
+    let textContent = article.textContent.trim();
 
-    // // remove when 2 blank lines
-    // var lines = textContent.split("\n");
-    // var newLines = [];
-    // var lastLine = "";
-    // for (var i = 0; i < lines.length; i++) {
-    //   lines[i] = lines[i].trim();
-    //   if (lines[i] === "" && lastLine === "") {
-    //     continue;
-    //   }
-    //   newLines.push(lines[i]);
-    //   lastLine = lines[i];
-    // }
-    // textContent = newLines.join("\n").trim();
+    // SANITIZE INPUT
+
+    // textContent = textContent.replace(/^(\s*\n){2,}/, "\r\n");
+
+    // remove when 2 blank lines in a row
+    var lines = textContent.split("\n");
+    var newLines = [];
+    var lastLine = "";
+    for (var i = 0; i < lines.length; i++) {
+      lines[i] = lines[i].trim();
+      if (lines[i] === "" && lastLine === "") {
+        continue;
+      }
+      newLines.push(lines[i]);
+      lastLine = lines[i];
+    }
+    textContent = newLines.join("\n").trim();
+
+    // textContent = textContent
+    //   .split(/\r?\n/) // Split input text into an array of lines
+    //   .filter((line) => line.trim() !== "") // Filter out lines that are empty or contain only whitespace
+    //   .join("\n"); // Join line array into a string
+
+    // textContent = textContent.replace(/\s+/g, "X");
 
     // Send the content back to the popup
     sendResponse({ content: textContent });
